@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>WalletOne.Owin.Security.OAuth2</id>
+    <version>0.1</version>
+    <authors>Artur Tagirov</authors>
+    <owners>Artur Tagirov</owners>
+    <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>
+    <projectUrl>https://github.com/atagirov/WalletOne.Owin.Security.OAuth2</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>
+      Additional WalletOne OAuth2 provider for Katana (OWIN).
+    </description>
+    <releaseNotes>
+      Version 0.1:
+      - Test version of WalletOne authenticating
+    </releaseNotes>
+    <copyright>Copyright 2014</copyright>
+    <tags>owin katana oauth walletone</tags>
+    <dependencies>
+      <dependency id="Microsoft.Owin.Security" version="2.0.2" />
+      <dependency id="Newtonsoft.Json" version="5.0.8" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="..\WalletOne.Owin.Security.OAuth2\bin\Release\WalletOne.Owin.Security.OAuth2.dll" target="lib\net45" />
+  </files>
+</package>

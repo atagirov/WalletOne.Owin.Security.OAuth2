@@ -9,7 +9,7 @@ namespace WalletOne.Owin.Security.OAuth2
 {
     public static class WalletOneAuthenticationExtensions
     {
-        public static IAppBuilder UseGooglePlusAuthentication(this IAppBuilder app, WalletOneAuthenticationOptions options)
+        public static IAppBuilder UseWalletOneAuthentication(this IAppBuilder app, WalletOneAuthenticationOptions options)
         {
             if (app == null)
                 throw new ArgumentNullException("app");
@@ -21,9 +21,9 @@ namespace WalletOne.Owin.Security.OAuth2
             return app;
         }
 
-        public static IAppBuilder UseGooglePlusAuthentication(this IAppBuilder app, string clientId)
+        public static IAppBuilder UseWalletOneAuthentication(this IAppBuilder app, string clientId)
         {
-            return app.UseGooglePlusAuthentication(new WalletOneAuthenticationOptions
+            return app.UseWalletOneAuthentication(new WalletOneAuthenticationOptions
             {
                 ClientId = clientId
             });

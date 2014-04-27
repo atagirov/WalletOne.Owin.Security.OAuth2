@@ -1,8 +1,10 @@
 ﻿using Microsoft.Owin;
+using Microsoft.Owin.Infrastructure;
 using Microsoft.Owin.Logging;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Infrastructure;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +18,9 @@ namespace WalletOne.Owin.Security.OAuth2
 {
     public class WalletOneAuthenticationHandler: AuthenticationHandler<WalletOneAuthenticationOptions>
     {
+        private readonly string TokenEndpoint = "https://api.w1.ru/oauth2/token";
+        private readonly string ProfileInfoEndpoint = "https://app.w1.ru/OpenApi/profile";
+
         private readonly ILogger logger;
         private readonly HttpClient httpClient;
 
@@ -81,43 +86,29 @@ namespace WalletOne.Owin.Security.OAuth2
 
                 // Get the Google user
                 HttpResponseMessage graphResponse = await httpClient.GetAsync(
-                    UserInfoEndpoint + "?access_token=" + Uri.EscapeDataString(accessToken), Request.CallCancelled);
+                    ProfileInfoEndpoint + "?access_token=" + Uri.EscapeDataString(accessToken), Request.CallCancelled);
                 graphResponse.EnsureSuccessStatusCode();
                 text = await graphResponse.Content.ReadAsStringAsync();
                 JObject user = JObject.Parse(text);
 
-                // Get the Google+ Person Info
-                graphResponse = await httpClient.GetAsync(
-                    GooglePlusUserEndpoint + "?access_token=" + Uri.EscapeDataString(accessToken), Request.CallCancelled);
-                graphResponse.EnsureSuccessStatusCode();
-                text = await graphResponse.Content.ReadAsStringAsync();
-                JObject person = JObject.Parse(text);
-
-                var context = new WalletOneAuthenticatedContext(Context, user, person, accessToken, expires, refreshToken);
+                
+                var context = new WalletOneAuthenticatedContext(Context, user, accessToken);
                 context.Identity = new ClaimsIdentity(
                     Options.AuthenticationType,
                     ClaimsIdentity.DefaultNameClaimType,
                     ClaimsIdentity.DefaultRoleClaimType);
-                if (!string.IsNullOrEmpty(context.Id))
+
+                context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, context.Id.ToString(), ClaimValueTypes.Integer, Options.AuthenticationType));
+                
+                if (!string.IsNullOrEmpty(context.Name))
                 {
-                    context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, context.Id, XmlSchemaString, Options.AuthenticationType));
-                }
-                if (!string.IsNullOrEmpty(context.UserName))
-                {
-                    context.Identity.AddClaim(new Claim(ClaimsIdentity.DefaultNameClaimType, context.UserName, XmlSchemaString, Options.AuthenticationType));
+                    context.Identity.AddClaim(new Claim(ClaimsIdentity.DefaultNameClaimType, context.Name, ClaimValueTypes.String, Options.AuthenticationType));
                 }
                 if (!string.IsNullOrEmpty(context.Email))
                 {
-                    context.Identity.AddClaim(new Claim(ClaimTypes.Email, context.Email, XmlSchemaString, Options.AuthenticationType));
+                    context.Identity.AddClaim(new Claim(ClaimTypes.Email, context.Email, ClaimValueTypes.String, Options.AuthenticationType));
                 }
-                if (!string.IsNullOrEmpty(context.Name))
-                {
-                    context.Identity.AddClaim(new Claim("urn:googleplus:name", context.Name, XmlSchemaString, Options.AuthenticationType));
-                }
-                if (!string.IsNullOrEmpty(context.Link))
-                {
-                    context.Identity.AddClaim(new Claim("urn:googleplus:url", context.Link, XmlSchemaString, Options.AuthenticationType));
-                }
+                
                 context.Properties = properties;
 
                 await Options.Provider.Authenticated(context);
@@ -176,6 +167,59 @@ namespace WalletOne.Owin.Security.OAuth2
             }
 
             return Task.FromResult<object>(null);
+        }
+
+        public override async Task<bool> InvokeAsync()
+        {
+            return await InvokeReplyPathAsync();
+        }
+
+        private async Task<bool> InvokeReplyPathAsync()
+        {
+            if (Options.CallbackPath.HasValue && Options.CallbackPath == Request.Path)
+            {
+                // TODO: error responses
+
+                AuthenticationTicket ticket = await AuthenticateAsync();
+                if (ticket == null)
+                {
+                    logger.WriteWarning("Invalid return state, unable to redirect.");
+                    Response.StatusCode = 500;
+                    return true;
+                }
+
+                var context = new WalletOneReturnEndpointContext(Context, ticket);
+                context.SignInAsAuthenticationType = Options.SignInAsAuthenticationType;
+                context.RedirectUri = ticket.Properties.RedirectUri;
+
+                await Options.Provider.ReturnEndpoint(context);
+
+                if (context.SignInAsAuthenticationType != null &&
+                    context.Identity != null)
+                {
+                    ClaimsIdentity grantIdentity = context.Identity;
+                    if (!string.Equals(grantIdentity.AuthenticationType, context.SignInAsAuthenticationType, StringComparison.Ordinal))
+                    {
+                        grantIdentity = new ClaimsIdentity(grantIdentity.Claims, context.SignInAsAuthenticationType, grantIdentity.NameClaimType, grantIdentity.RoleClaimType);
+                    }
+                    Context.Authentication.SignIn(context.Properties, grantIdentity);
+                }
+
+                if (!context.IsRequestCompleted && context.RedirectUri != null)
+                {
+                    string redirectUri = context.RedirectUri;
+                    if (context.Identity == null)
+                    {
+                        // add a redirect hint that sign-in failed in some way
+                        redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "access_denied");
+                    }
+                    Response.Redirect(redirectUri);
+                    context.RequestCompleted();
+                }
+
+                return context.IsRequestCompleted;
+            }
+            return false;
         }
     }
 }

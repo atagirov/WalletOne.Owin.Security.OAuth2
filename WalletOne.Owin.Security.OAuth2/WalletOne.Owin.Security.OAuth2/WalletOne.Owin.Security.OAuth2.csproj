@@ -52,8 +52,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="WalletOneAuthenticationMiddleware.cs" />
+    <Compile Include="WalletOneAuthenticationExtensions.cs" />
     <Compile Include="Provider\IWalletOneAuthenticationProvider.cs" />
     <Compile Include="Provider\WalletOneAuthenticatedContext.cs" />
+    <Compile Include="Provider\WalletOneAuthenticationProvider.cs" />
     <Compile Include="Provider\WalletOneReturnEndpointContext.cs" />
     <Compile Include="WalletOneAuthenticationHandler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

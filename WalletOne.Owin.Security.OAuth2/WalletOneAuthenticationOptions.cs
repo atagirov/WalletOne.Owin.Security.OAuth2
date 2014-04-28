@@ -14,6 +14,7 @@ namespace WalletOne.Owin.Security.OAuth2
         public WalletOneAuthenticationOptions() 
             : base("WalletOne")
         {
+            Caption = "Wallet One";
             CallbackPath = new PathString("/signin-walletone");
             AuthenticationMode = AuthenticationMode.Passive;
             Scope = new List<string>
@@ -32,6 +33,15 @@ namespace WalletOne.Owin.Security.OAuth2
         /// A list of permissions to request.
         /// </summary>
         public IList<string> Scope { get; private set; }
+
+        /// <summary>
+        /// Get or sets the text that the user can display on a sign in user interface.
+        /// </summary>
+        public string Caption
+        {
+            get { return Description.Caption; }
+            set { Description.Caption = value; }
+        }
 
         /// <summary>
         /// Gets or sets the type used to secure data handled by the middleware.

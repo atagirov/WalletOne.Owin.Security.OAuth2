@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>WalletOne.Owin.Security.OAuth2</id>
-    <version>0.2</version>
+    <version>0.3</version>
     <authors>Artur Tagirov</authors>
     <owners>Artur Tagirov</owners>
     <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>
@@ -12,11 +12,6 @@
       Additional WalletOne OAuth2 provider for Katana (OWIN).
     </description>
     <releaseNotes>
-      Version 0.2:
-      - fix name from GooglePlus
-      - change dependencies versions
-      Version 0.1:
-      - Test version of WalletOne authenticating
     </releaseNotes>
     <copyright>Copyright 2014</copyright>
     <tags>owin katana oauth walletone</tags>

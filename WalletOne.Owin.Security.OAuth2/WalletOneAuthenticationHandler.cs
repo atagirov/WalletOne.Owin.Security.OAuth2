@@ -30,6 +30,53 @@ namespace WalletOne.Owin.Security.OAuth2
             this.logger = logger;
         }
 
+        protected override Task ApplyResponseChallengeAsync()
+        {
+            if (Response.StatusCode != 401)
+                return Task.FromResult<object>(null);
+
+            AuthenticationResponseChallenge challenge = Helper.LookupChallenge(Options.AuthenticationType, Options.AuthenticationMode);
+
+            if (challenge != null)
+            {
+                string baseUri =
+                    Request.Scheme +
+                    Uri.SchemeDelimiter +
+                    Request.Host +
+                    Request.PathBase;
+
+                string currentUri =
+                    baseUri +
+                    Request.Path +
+                    Request.QueryString;
+
+                AuthenticationProperties properties = challenge.Properties;
+                if (string.IsNullOrEmpty(properties.RedirectUri))
+                {
+                    properties.RedirectUri = currentUri;
+                }
+
+                // OAuth2 10.12 CSRF
+                GenerateCorrelationId(properties);
+
+                // comma separated
+                string scope = string.Join(" ", Options.Scope);
+
+                string state = Options.StateDataFormat.Protect(properties);
+
+                string authorizationEndpoint =
+                    "https://api.w1.ru/OAuth2/Authorize" +
+                    "?response_type=code" +
+                    "&client_id=" + Uri.EscapeDataString(Options.ClientId) +
+                    "&scope=" + Uri.EscapeDataString(scope) +
+                    "&state=" + Uri.EscapeDataString(state);
+
+                Response.Redirect(authorizationEndpoint);
+            }
+
+            return Task.FromResult<object>(null);
+        }
+
         protected override async Task<AuthenticationTicket> AuthenticateCoreAsync()
         {
             AuthenticationProperties properties = null;
@@ -122,104 +169,57 @@ namespace WalletOne.Owin.Security.OAuth2
             return new AuthenticationTicket(null, properties);
         }
 
-        protected override Task ApplyResponseChallengeAsync()
-        {
-            if (Response.StatusCode != 401)
-                return Task.FromResult<object>(null);
-
-            AuthenticationResponseChallenge challenge = Helper.LookupChallenge(Options.AuthenticationType, Options.AuthenticationMode);
-
-            if (challenge != null)
-            {
-                string baseUri =
-                    Request.Scheme +
-                    Uri.SchemeDelimiter +
-                    Request.Host +
-                    Request.PathBase;
-
-                string currentUri =
-                    baseUri +
-                    Request.Path +
-                    Request.QueryString;
-
-                AuthenticationProperties properties = challenge.Properties;
-                if (string.IsNullOrEmpty(properties.RedirectUri))
-                {
-                    properties.RedirectUri = currentUri;
-                }
-
-                // OAuth2 10.12 CSRF
-                GenerateCorrelationId(properties);
-
-                // comma separated
-                string scope = string.Join(" ", Options.Scope);
-
-                string state = Options.StateDataFormat.Protect(properties);
-
-                string authorizationEndpoint =
-                    "https://api.w1.ru/OAuth2/Authorize" +
-                    "?response_type=code" +
-                    "&client_id=" + Uri.EscapeDataString(Options.ClientId) +
-                    "&scope=" + Uri.EscapeDataString(scope) +
-                    "&state=" + Uri.EscapeDataString(state);
-
-                Response.Redirect(authorizationEndpoint);
-            }
-
-            return Task.FromResult<object>(null);
-        }
-
         public override async Task<bool> InvokeAsync()
         {
-            return await InvokeReplyPathAsync();
+            if (Options.CallbackPath.HasValue && Options.CallbackPath == Request.Path)
+            {
+                return await InvokeReplyPathAsync();
+            }
+            return false;
         }
 
         private async Task<bool> InvokeReplyPathAsync()
         {
-            if (Options.CallbackPath.HasValue && Options.CallbackPath == Request.Path)
+            // TODO: error responses
+
+            AuthenticationTicket ticket = await AuthenticateAsync();
+            if (ticket == null)
             {
-                // TODO: error responses
-
-                AuthenticationTicket ticket = await AuthenticateAsync();
-                if (ticket == null)
-                {
-                    logger.WriteWarning("Invalid return state, unable to redirect.");
-                    Response.StatusCode = 500;
-                    return true;
-                }
-
-                var context = new WalletOneReturnEndpointContext(Context, ticket);
-                context.SignInAsAuthenticationType = Options.SignInAsAuthenticationType;
-                context.RedirectUri = ticket.Properties.RedirectUri;
-
-                await Options.Provider.ReturnEndpoint(context);
-
-                if (context.SignInAsAuthenticationType != null &&
-                    context.Identity != null)
-                {
-                    ClaimsIdentity grantIdentity = context.Identity;
-                    if (!string.Equals(grantIdentity.AuthenticationType, context.SignInAsAuthenticationType, StringComparison.Ordinal))
-                    {
-                        grantIdentity = new ClaimsIdentity(grantIdentity.Claims, context.SignInAsAuthenticationType, grantIdentity.NameClaimType, grantIdentity.RoleClaimType);
-                    }
-                    Context.Authentication.SignIn(context.Properties, grantIdentity);
-                }
-
-                if (!context.IsRequestCompleted && context.RedirectUri != null)
-                {
-                    string redirectUri = context.RedirectUri;
-                    if (context.Identity == null)
-                    {
-                        // add a redirect hint that sign-in failed in some way
-                        redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "access_denied");
-                    }
-                    Response.Redirect(redirectUri);
-                    context.RequestCompleted();
-                }
-
-                return context.IsRequestCompleted;
+                logger.WriteWarning("Invalid return state, unable to redirect.");
+                Response.StatusCode = 500;
+                return true;
             }
-            return false;
+
+            var context = new WalletOneReturnEndpointContext(Context, ticket);
+            context.SignInAsAuthenticationType = Options.SignInAsAuthenticationType;
+            context.RedirectUri = ticket.Properties.RedirectUri;
+
+            await Options.Provider.ReturnEndpoint(context);
+
+            if (context.SignInAsAuthenticationType != null &&
+                context.Identity != null)
+            {
+                ClaimsIdentity grantIdentity = context.Identity;
+                if (!string.Equals(grantIdentity.AuthenticationType, context.SignInAsAuthenticationType, StringComparison.Ordinal))
+                {
+                    grantIdentity = new ClaimsIdentity(grantIdentity.Claims, context.SignInAsAuthenticationType, grantIdentity.NameClaimType, grantIdentity.RoleClaimType);
+                }
+                Context.Authentication.SignIn(context.Properties, grantIdentity);
+            }
+
+            if (!context.IsRequestCompleted && context.RedirectUri != null)
+            {
+                string redirectUri = context.RedirectUri;
+                if (context.Identity == null)
+                {
+                    // add a redirect hint that sign-in failed in some way
+                    redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "access_denied");
+                }
+                Response.Redirect(redirectUri);
+                context.RequestCompleted();
+            }
+
+            return context.IsRequestCompleted;
         }
     }
 }

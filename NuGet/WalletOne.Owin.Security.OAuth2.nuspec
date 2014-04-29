@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>WalletOne.Owin.Security.OAuth2</id>
-    <version>0.3</version>
+    <version>1.0</version>
     <authors>Artur Tagirov</authors>
     <owners>Artur Tagirov</owners>
     <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>

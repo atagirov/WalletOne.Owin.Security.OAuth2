@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,7 +20,7 @@ namespace WalletOne.Owin.Security.OAuth2
     public class WalletOneAuthenticationHandler: AuthenticationHandler<WalletOneAuthenticationOptions>
     {
         private readonly string TokenEndpoint = "https://api.w1.ru/oauth2/token";
-        private readonly string ProfileInfoEndpoint = "https://app.w1.ru/OpenApi/profile";
+        private readonly string ProfileInfoEndpoint = "https://api.w1.ru/OpenApi/profile";
 
         private readonly ILogger logger;
         private readonly HttpClient httpClient;
@@ -131,20 +132,20 @@ namespace WalletOne.Owin.Security.OAuth2
                 if (response.refresh_token != null)
                     refreshToken = (string)response.refresh_token;
 
-                // Get the Google user
-                HttpResponseMessage graphResponse = await httpClient.GetAsync(
-                    ProfileInfoEndpoint + "?access_token=" + Uri.EscapeDataString(accessToken), Request.CallCancelled);
+                // Get the WalletOne Profile
+                HttpRequestMessage profileRequest = new HttpRequestMessage(HttpMethod.Get, ProfileInfoEndpoint);
+                profileRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                profileRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.wallet.openapi.v1+json"));
+
+                HttpResponseMessage graphResponse = await httpClient.SendAsync(profileRequest, Request.CallCancelled);
                 graphResponse.EnsureSuccessStatusCode();
                 text = await graphResponse.Content.ReadAsStringAsync();
                 JObject user = JObject.Parse(text);
 
                 
                 var context = new WalletOneAuthenticatedContext(Context, user, accessToken);
-                context.Identity = new ClaimsIdentity(
-                    Options.AuthenticationType,
-                    ClaimsIdentity.DefaultNameClaimType,
-                    ClaimsIdentity.DefaultRoleClaimType);
 
+                context.Identity = new ClaimsIdentity(Options.AuthenticationType, ClaimsIdentity.DefaultNameClaimType, ClaimsIdentity.DefaultRoleClaimType);
                 context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, context.Id.ToString(), ClaimValueTypes.Integer, Options.AuthenticationType));
                 
                 if (!string.IsNullOrEmpty(context.Name))

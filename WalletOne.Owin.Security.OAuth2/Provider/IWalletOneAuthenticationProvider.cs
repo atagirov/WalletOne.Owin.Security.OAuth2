@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 namespace WalletOne.Owin.Security.OAuth2.Provider
 {
     /// <summary>
-    /// Specifies callback methods which the <see cref="GooglePlusAuthenticationMiddleware"></see> invokes to enable developer control over the authentication process. />
+    /// Specifies callback methods which the <see cref="WalletOneAuthenticationMiddleware"></see> invokes to enable developer control over the authentication process. />
     /// </summary>
     public interface IWalletOneAuthenticationProvider
     {
         /// <summary>
-        /// Invoked whenever Google+ succesfully authenticates a user
+        /// Invoked whenever WalletOne succesfully authenticates a user
         /// </summary>
         /// <param name="context">Contains information about the login session as well as the user <see cref="System.Security.Claims.ClaimsIdentity"/>.</param>
         /// <returns>A <see cref="Task"/> representing the completed operation.</returns>

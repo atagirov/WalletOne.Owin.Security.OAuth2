@@ -2,12 +2,7 @@
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Provider;
 using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace WalletOne.Owin.Security.OAuth2.Provider
 {
@@ -19,14 +14,31 @@ namespace WalletOne.Owin.Security.OAuth2.Provider
             Profile = profile;
             AccessToken = accessToken;
 
-            Id = (long)profile.GetValue("UserId");
-            //Name = TryGetValue(profile, "displayName");
-            
-            //var email = (from e in profile["emails"]
-            //    where e["type"].ToString() == "account"
-            //    select e).FirstOrDefault();
-            //if (email != null)
-            //    Email = email["value"].ToString();
+            Id = (string)profile["UserId"];
+
+            JArray userAttributes = profile["UserAttributes"] as JArray;
+
+            if (userAttributes != null)
+            {
+                foreach (JToken token in userAttributes.Children())
+                {
+                    switch ((string)token["UserAttributeTypeId"])
+                    {
+                        case "NtfEmail":
+                            Email = (string)token["DisplayValue"];
+                            break;
+                        case "Email":
+                            if (string.IsNullOrEmpty(Email) && (string)token["VerificationState"] == "Verified")
+                                Email = (string)token["DisplayValue"];
+                            break;
+                        case "Title":
+                            Name = (string)token["DisplayValue"];
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -46,7 +58,7 @@ namespace WalletOne.Owin.Security.OAuth2.Provider
         /// <summary>
         /// Gets the WalletOne UserID
         /// </summary>
-        public long Id { get; private set; }
+        public string Id { get; private set; }
 
         /// <summary>
         /// Gets the user's name
@@ -67,11 +79,5 @@ namespace WalletOne.Owin.Security.OAuth2.Provider
         /// Gets or sets a property bag for common authentication properties
         /// </summary>
         public AuthenticationProperties Properties { get; set; }
-
-        private static string TryGetValue(JObject user, string propertyName)
-        {
-            JToken value;
-            return user.TryGetValue(propertyName, out value) ? value.ToString() : null;
-        }
     }
 }

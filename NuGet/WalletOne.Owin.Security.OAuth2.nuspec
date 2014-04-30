@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>WalletOne.Owin.Security.OAuth2</id>
-    <version>0.3</version>
+    <version>1.0.1</version>
     <authors>Artur Tagirov</authors>
     <owners>Artur Tagirov</owners>
     <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>
@@ -16,8 +16,8 @@
     <copyright>Copyright 2014</copyright>
     <tags>owin katana oauth walletone</tags>
     <dependencies>
-      <dependency id="Microsoft.Owin.Security" version="2.0.2" />
-      <dependency id="Newtonsoft.Json" version="5.0.8" />
+      <dependency id="Microsoft.Owin.Security" version="2.0.0" />
+      <dependency id="Newtonsoft.Json" version="5.0.6" />
     </dependencies>
   </metadata>
   <files>
